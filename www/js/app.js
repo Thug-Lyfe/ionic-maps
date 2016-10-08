@@ -21,21 +21,36 @@ angular.module('starter', ['ionic', 'ngCordova'])
       StatusBar.styleDefault();
     }
   });
-})
-  .config(function($stateProvider, $urlRouterProvider) {
+}).config(function($stateProvider, $urlRouterProvider) {
 
     $stateProvider
       .state('map', {
         url: '/',
         templateUrl: 'templates/map.html',
-        controller: 'MapCtrl'
+        //controller: 'MapCtrl'
       });
 
     $urlRouterProvider.otherwise("/");
 
-  })
-  .controller('MapCtrl', function($scope, $state, $cordovaGeolocation) {
+  }).controller('MapCtrl', function($scope, $state, $cordovaGeolocation,$ionicModal,$http) {
     var options = {timeout: 10000, enableHighAccuracy: true};
+
+    //modal functions
+
+  $ionicModal.fromTemplateUrl('my-modal.html', {
+    scope: $scope,
+    animation: 'slide-in-up'
+  }).then(function(modal) {
+    $scope.modal = modal;
+  });
+  $scope.openModal = function() {
+    $scope.modal.show();
+  };
+  $scope.closeModal = function() {
+    $scope.modal.hide();
+  };
+
+
 
     $cordovaGeolocation.getCurrentPosition(options).then(function(position){
 
@@ -68,4 +83,49 @@ angular.module('starter', ['ionic', 'ngCordova'])
     }, function(error){
       console.log("Could not get location");
     });
-  });
+
+    // register user;
+  $scope.user = {};
+  var friends = [];
+  $scope.registerUser = function (user) {
+    $scope.modal.hide();
+    console.log("1: " + user.userName);
+    console.log("2: " + user.distance);
+    user.loc = {type: "Point", coordinates: []}; //GeoJSON point
+    user.loc.coordinates.push(myLatlng.lng()); //Observe that longitude comes first
+    user.loc.coordinates.push(myLatlng.lat()); //in GEoJSON
+    console.log(JSON.stringify(user));
+    $http({
+      method: "POST",
+      url: " http://ionicboth-plaul.rhcloud.com/api/friends/register/"+user.distance,
+      data: user
+    }).then(function successCallback(res) {
+      if(res.data!=null){
+        console.log(res.data);
+        friends = res.data;
+        showFriends();
+      }
+    }, function errorCallback(res) {
+      //error
+      console.log(errorCallback(res))
+    });
+  }
+
+  var showFreinds = function(){
+    friends.forEach(function(friend,index,arr){
+      console.log(friend)
+      var marker = new google.maps.Marker({
+        position: new google.maps.LatLng(friend.loc.coordinates[1], friend.loc.coordinates[0]),
+        map: $scope.map,
+        icon: new google.maps.MarkerImage("http://maps.google.com/mapfiles/ms/icons/" + "pink.png"),
+        title: friend.userName
+      });
+      marker.addListener('click', function() {
+        new google.maps.InfoWindow({
+          content: friend.userName
+        }).open($scope.map, marker)
+      });
+    })
+  };
+
+});
